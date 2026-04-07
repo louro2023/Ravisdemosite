@@ -1,25 +1,16 @@
 import { Rocket, ArrowRight, MapPin, Calendar, Instagram, Facebook, MessageCircle, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-
-interface Noticia {
-  id: number;
-  categoria: string;
-  data: string;
-  titulo: string;
-  resumo: string;
-  imagem: string;
-}
+import { fetchNoticias, type Noticia } from '../firebaseService';
 
 export default function Noticias() {
   const [todasNoticias, setTodasNoticias] = useState<Noticia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchNoticias = async () => {
+    const loadNoticias = async () => {
       try {
-        const response = await fetch('/api/noticias');
-        const data = await response.json();
+        const data = await fetchNoticias();
         setTodasNoticias(data);
       } catch (error) {
         console.error("Erro ao buscar notícias:", error);
@@ -28,7 +19,7 @@ export default function Noticias() {
       }
     };
 
-    fetchNoticias();
+    loadNoticias();
   }, []);
 
   return (

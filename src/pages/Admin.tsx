@@ -1,84 +1,113 @@
-import { Rocket, ArrowLeft, Plus, Trash2, Edit, Save, X } from 'lucide-react';
+import { Rocket, ArrowLeft, Plus, Trash2, Save, X, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-
-interface Noticia {
-  id: number;
-  categoria: string;
-  data: string;
-  titulo: string;
-  resumo: string;
-  imagem: string;
-}
+import { fetchNoticias, addNoticia, deleteNoticia, type Noticia } from '../firebaseService';
 
 export default function Admin() {
   const [noticias, setNoticias] = useState<Noticia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   
   const [novaNoticia, setNovaNoticia] = useState({
     categoria: 'Trabalho',
     titulo: '',
     resumo: '',
-    imagem: 'https://picsum.photos/seed/nova/600/400'
+    imagem: ''
   });
 
   useEffect(() => {
-    fetchNoticias();
+    loadNoticias();
   }, []);
 
-  const fetchNoticias = async () => {
+  const loadNoticias = async () => {
     try {
-      const response = await fetch('/api/noticias');
-      const data = await response.json();
+      setIsLoading(true);
+      setError(null);
+      const data = await fetchNoticias();
       setNoticias(data);
-    } catch (error) {
-      console.error("Erro ao buscar notícias:", error);
+    } catch (err) {
+      setError("Erro ao carregar notícias. Verifique sua conexão.");
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleAddSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const response = await fetch('/api/noticias', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(novaNoticia),
-      });
-      
-      if (response.ok) {
-        const addedNoticia = await response.json();
-        setNoticias([addedNoticia, ...noticias]);
-        setIsAdding(false);
-        setNovaNoticia({
-          categoria: 'Trabalho',
-          titulo: '',
-          resumo: '',
-          imagem: `https://picsum.photos/seed/${Math.random()}/600/400`
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao adicionar notícia:", error);
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setImagePreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!novaNoticia.titulo || !novaNoticia.resumo) {
+      setError("Preencha todos os campos obrigatórios");
+      return;
+    }
+
+    if (!selectedFile && !novaNoticia.imagem) {
+      setError("Selecione uma imagem ou forneça uma URL");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+      
+      await addNoticia(
+        {
+          categoria: novaNoticia.categoria,
+          titulo: novaNoticia.titulo,
+          resumo: novaNoticia.resumo,
+          imagem: novaNoticia.imagem,
+          data: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }),
+        },
+        selectedFile || undefined
+      );
+
+      // Reload noticias
+      await loadNoticias();
+      
+      // Reset form
+      setIsAdding(false);
+      setNovaNoticia({
+        categoria: 'Trabalho',
+        titulo: '',
+        resumo: '',
+        imagem: ''
+      });
+      setImagePreview(null);
+      setSelectedFile(null);
+    } catch (err) {
+      setError("Erro ao adicionar notícia. Tente novamente.");
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
     if (!window.confirm("Tem certeza que deseja excluir esta notícia?")) return;
     
     try {
-      const response = await fetch(`/api/noticias/${id}`, {
-        method: 'DELETE',
-      });
-      
-      if (response.ok) {
-        setNoticias(noticias.filter(n => n.id !== id));
-      }
-    } catch (error) {
-      console.error("Erro ao deletar notícia:", error);
+      setError(null);
+      await deleteNoticia(id);
+      setNoticias(noticias.filter(n => n.id !== id));
+    } catch (err) {
+      setError("Erro ao deletar notícia. Tente novamente.");
+      console.error(err);
     }
   };
 
@@ -116,6 +145,14 @@ export default function Admin() {
           )}
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="text-red-800">{error}</div>
+          </div>
+        )}
+
         {/* Add Form */}
         {isAdding && (
           <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200 mb-8 animate-in fade-in slide-in-from-top-4">
@@ -129,7 +166,7 @@ export default function Admin() {
             <form onSubmit={handleAddSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Título</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Título *</label>
                   <input 
                     type="text" 
                     required
@@ -140,7 +177,7 @@ export default function Admin() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Categoria</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Categoria *</label>
                   <select 
                     value={novaNoticia.categoria}
                     onChange={e => setNovaNoticia({...novaNoticia, categoria: e.target.value})}
@@ -155,20 +192,51 @@ export default function Admin() {
                   </select>
                 </div>
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">URL da Imagem</label>
-                <input 
-                  type="url" 
-                  required
-                  value={novaNoticia.imagem}
-                  onChange={e => setNovaNoticia({...novaNoticia, imagem: e.target.value})}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-brand-blue outline-none transition-all"
-                />
+                <label className="block text-sm font-medium text-slate-700 mb-1">Imagem *</label>
+                <div className="space-y-3">
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 hover:bg-slate-50 transition-colors">
+                    <input 
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="w-full"
+                    />
+                    <p className="text-xs text-slate-500 mt-2">Ou forneça uma URL:</p>
+                    <input 
+                      type="url" 
+                      value={novaNoticia.imagem}
+                      onChange={e => setNovaNoticia({...novaNoticia, imagem: e.target.value})}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-brand-blue outline-none transition-all text-sm mt-2"
+                      placeholder="https://exemplo.com/imagem.jpg"
+                    />
+                  </div>
+                  
+                  {imagePreview && (
+                    <div className="relative">
+                      <img 
+                        src={imagePreview} 
+                        alt="Preview" 
+                        className="w-full h-40 object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImagePreview(null);
+                          setSelectedFile(null);
+                        }}
+                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Resumo</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Resumo *</label>
                 <textarea 
                   required
                   rows={3}
@@ -182,17 +250,22 @@ export default function Admin() {
               <div className="flex justify-end gap-3 pt-4">
                 <button 
                   type="button"
-                  onClick={() => setIsAdding(false)}
+                  onClick={() => {
+                    setIsAdding(false);
+                    setImagePreview(null);
+                    setSelectedFile(null);
+                  }}
                   className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit"
-                  className="bg-brand-blue hover:bg-blue-900 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-sm"
+                  disabled={isSubmitting}
+                  className="bg-brand-blue hover:bg-blue-900 disabled:bg-slate-400 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-sm"
                 >
                   <Save className="h-4 w-4" />
-                  Salvar Notícia
+                  {isSubmitting ? 'Salvando...' : 'Salvar Notícia'}
                 </button>
               </div>
             </form>
@@ -221,7 +294,15 @@ export default function Admin() {
                   {noticias.map((noticia) => (
                     <tr key={noticia.id} className="hover:bg-slate-50 transition-colors">
                       <td className="p-4">
-                        <img src={noticia.imagem} alt="" className="w-16 h-12 object-cover rounded" referrerPolicy="no-referrer" />
+                        <img 
+                          src={noticia.imagem} 
+                          alt="" 
+                          className="w-16 h-12 object-cover rounded" 
+                          referrerPolicy="no-referrer"
+                          onError={(e) => {
+                            e.currentTarget.src = 'https://via.placeholder.com/64x48?text=Erro';
+                          }}
+                        />
                       </td>
                       <td className="p-4">
                         <div className="font-medium text-slate-900 line-clamp-1">{noticia.titulo}</div>

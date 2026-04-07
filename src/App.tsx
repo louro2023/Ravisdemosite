@@ -7,24 +7,15 @@ import { Rocket, ArrowRight, MapPin, Calendar, Briefcase, ChevronRight, Instagra
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-
-interface Noticia {
-  id: number;
-  categoria: string;
-  data: string;
-  titulo: string;
-  resumo: string;
-  imagem: string;
-}
+import { fetchNoticias, type Noticia } from './firebaseService';
 
 export default function App() {
   const [noticias, setNoticias] = useState<Noticia[]>([]);
 
   useEffect(() => {
-    const fetchNoticias = async () => {
+    const loadNoticias = async () => {
       try {
-        const response = await fetch('/api/noticias');
-        const data = await response.json();
+        const data = await fetchNoticias();
         // Show only the 3 most recent news on the home page
         setNoticias(data.slice(0, 3));
       } catch (error) {
@@ -32,7 +23,7 @@ export default function App() {
       }
     };
 
-    fetchNoticias();
+    loadNoticias();
   }, []);
 
   return (
