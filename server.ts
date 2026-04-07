@@ -82,9 +82,6 @@ async function startServer() {
     res.status(204).send();
   });
 
-  // Serve static files from midia folder
-  app.use('/midia', express.static(path.join(process.cwd(), 'midia')));
-
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -95,6 +92,14 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
+  }
+
+  // Serve static files from midia folder (applies to both dev and production)
+  app.use('/midia', express.static(path.join(process.cwd(), 'midia')));
+
+  // Fallback to index.html for SPA (production only)
+  if (process.env.NODE_ENV === "production") {
+    const distPath = path.join(process.cwd(), 'dist');
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
