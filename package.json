@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
-    "seed": "node seed-noticias.js"
+    "seed": "node seed-rest.cjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
