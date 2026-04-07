@@ -306,31 +306,37 @@ export default function App() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {noticias.map((noticia) => (
-              <div key={noticia.id} className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer flex flex-col">
-                <div className="aspect-video overflow-hidden relative">
-                  <img src={noticia.imagem} alt={noticia.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
-                  <div className="absolute top-4 left-4 bg-brand-blue text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-                    {noticia.categoria}
+            {noticias.length > 0 ? (
+              noticias.map((noticia) => (
+                <div key={noticia.id} className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer flex flex-col">
+                  <div className="aspect-video overflow-hidden relative">
+                    <img src={noticia.imagem} alt={noticia.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+                    <div className="absolute top-4 left-4 bg-brand-blue text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                      {noticia.categoria}
+                    </div>
+                  </div>
+                  <div className="p-6 flex flex-col flex-grow">
+                    <div className="text-sm text-slate-400 mb-3 flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      {noticia.data}
+                    </div>
+                    <h3 className="font-heading font-bold text-xl text-brand-blue mb-3 group-hover:text-brand-red transition-colors line-clamp-2">
+                      {noticia.titulo}
+                    </h3>
+                    <p className="text-slate-600 line-clamp-3 mb-4 flex-grow">
+                      {noticia.resumo}
+                    </p>
+                    <span className="text-brand-red font-medium flex items-center gap-1 group-hover:gap-2 transition-all mt-auto pt-4 border-t border-slate-50">
+                      Ler mais <ArrowRight className="h-4 w-4" />
+                    </span>
                   </div>
                 </div>
-                <div className="p-6 flex flex-col flex-grow">
-                  <div className="text-sm text-slate-400 mb-3 flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    {noticia.data}
-                  </div>
-                  <h3 className="font-heading font-bold text-xl text-brand-blue mb-3 group-hover:text-brand-red transition-colors line-clamp-2">
-                    {noticia.titulo}
-                  </h3>
-                  <p className="text-slate-600 line-clamp-3 mb-4 flex-grow">
-                    {noticia.resumo}
-                  </p>
-                  <span className="text-brand-red font-medium flex items-center gap-1 group-hover:gap-2 transition-all mt-auto pt-4 border-t border-slate-50">
-                    Ler mais <ArrowRight className="h-4 w-4" />
-                  </span>
-                </div>
+              ))
+            ) : (
+              <div className="col-span-full py-16 text-center text-slate-600">
+                <p className="text-lg">Nenhuma notícia disponível no momento...</p>
               </div>
-            ))}
+            )}
           </div>
           
           <div className="mt-8 text-center md:hidden">

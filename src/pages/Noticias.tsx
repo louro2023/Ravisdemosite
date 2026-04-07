@@ -101,40 +101,47 @@ export default function Noticias() {
       {/* News Grid */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {todasNoticias.map((noticia) => (
-              <div key={noticia.id} className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer flex flex-col">
-                <div className="aspect-video overflow-hidden relative">
-                  <img src={noticia.imagem} alt={noticia.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
-                  <div className="absolute top-4 left-4 bg-brand-blue text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
-                    {noticia.categoria}
+          {isLoading ? (
+            <div className="py-20 text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-brand-blue"></div>
+              <p className="mt-4 text-slate-600 text-lg">Carregando notícias...</p>
+            </div>
+          ) : todasNoticias.length > 0 ? (
+            <>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                {todasNoticias.map((noticia) => (
+                  <div key={noticia.id} className="bg-white rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all group cursor-pointer flex flex-col">
+                    <div className="aspect-video overflow-hidden relative">
+                      <img src={noticia.imagem} alt={noticia.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" referrerPolicy="no-referrer" />
+                      <div className="absolute top-4 left-4 bg-brand-blue text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wide">
+                        {noticia.categoria}
+                      </div>
+                    </div>
+                    <div className="p-6 flex flex-col flex-grow">
+                      <div className="text-sm text-slate-400 mb-3 flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        {noticia.data}
+                      </div>
+                      <h3 className="font-heading font-bold text-xl text-brand-blue mb-3 group-hover:text-brand-red transition-colors line-clamp-2">
+                        {noticia.titulo}
+                      </h3>
+                      <p className="text-slate-600 line-clamp-3 mb-4 flex-grow">
+                        {noticia.resumo}
+                      </p>
+                      <span className="text-brand-red font-medium flex items-center gap-1 group-hover:gap-2 transition-all mt-auto pt-4 border-t border-slate-50">
+                        Ler mais <ArrowRight className="h-4 w-4" />
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="p-6 flex flex-col flex-grow">
-                  <div className="text-sm text-slate-400 mb-3 flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    {noticia.data}
-                  </div>
-                  <h3 className="font-heading font-bold text-xl text-brand-blue mb-3 group-hover:text-brand-red transition-colors line-clamp-2">
-                    {noticia.titulo}
-                  </h3>
-                  <p className="text-slate-600 line-clamp-3 mb-4 flex-grow">
-                    {noticia.resumo}
-                  </p>
-                  <span className="text-brand-red font-medium flex items-center gap-1 group-hover:gap-2 transition-all mt-auto pt-4 border-t border-slate-50">
-                    Ler mais <ArrowRight className="h-4 w-4" />
-                  </span>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-          
-          {/* Pagination (Visual only for now) */}
-          <div className="mt-16 flex justify-center gap-2">
-            <button className="w-10 h-10 rounded-full bg-brand-blue text-white font-bold flex items-center justify-center">1</button>
-            <button className="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold flex items-center justify-center transition-colors">2</button>
-            <button className="w-10 h-10 rounded-full bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold flex items-center justify-center transition-colors">3</button>
-          </div>
+            </>
+          ) : (
+            <div className="py-20 text-center">
+              <p className="text-slate-600 text-lg mb-4">Nenhuma notícia disponível no momento.</p>
+              <p className="text-slate-500">Volte em breve para acompanhar nossas últimas novidades!</p>
+            </div>
+          )}
         </div>
       </section>
 
