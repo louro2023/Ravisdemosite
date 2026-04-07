@@ -1,25 +1,44 @@
 import { Rocket, ArrowRight, MapPin, Calendar, Instagram, Facebook, MessageCircle, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { fetchNoticias, type Noticia } from '../firebaseService';
+import { db } from '../firebase';
+import { ref, onValue } from 'firebase/database';
+
+interface Noticia {
+  id: string;
+  categoria: string;
+  data: string;
+  titulo: string;
+  resumo: string;
+  imagem: string;
+}
 
 export default function Noticias() {
   const [todasNoticias, setTodasNoticias] = useState<Noticia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadNoticias = async () => {
-      try {
-        const data = await fetchNoticias();
-        setTodasNoticias(data);
-      } catch (error) {
-        console.error("Erro ao buscar notícias:", error);
-      } finally {
-        setIsLoading(false);
+    const noticiasRef = ref(db, 'noticias');
+    const unsubscribe = onValue(noticiasRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const noticiasArray = Object.keys(data)
+          .map((key) => ({
+            id: key,
+            ...data[key]
+          }))
+          .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+        setTodasNoticias(noticiasArray);
+      } else {
+        setTodasNoticias([]);
       }
-    };
+      setIsLoading(false);
+    }, (error) => {
+      console.error("Erro ao buscar notícias:", error);
+      setIsLoading(false);
+    });
 
-    loadNoticias();
+    return () => unsubscribe();
   }, []);
 
   return (

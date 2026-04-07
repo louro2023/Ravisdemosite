@@ -7,23 +7,38 @@ import { Rocket, ArrowRight, MapPin, Calendar, Briefcase, ChevronRight, Instagra
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { fetchNoticias, type Noticia } from './firebaseService';
+import { db } from './firebase';
+import { ref, onValue } from 'firebase/database';
+
+interface Noticia {
+  id: string;
+  categoria: string;
+  data: string;
+  titulo: string;
+  resumo: string;
+  imagem: string;
+}
 
 export default function App() {
   const [noticias, setNoticias] = useState<Noticia[]>([]);
 
   useEffect(() => {
-    const loadNoticias = async () => {
-      try {
-        const data = await fetchNoticias();
+    const noticiasRef = ref(db, 'noticias');
+    const unsubscribe = onValue(noticiasRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const noticiasArray = Object.keys(data).map((key) => ({
+          id: key,
+          ...data[key]
+        }));
         // Show only the 3 most recent news on the home page
-        setNoticias(data.slice(0, 3));
-      } catch (error) {
-        console.error("Erro ao buscar notícias:", error);
+        setNoticias(noticiasArray.slice(0, 3));
       }
-    };
+    }, (error) => {
+      console.error("Erro ao buscar notícias:", error);
+    });
 
-    loadNoticias();
+    return () => unsubscribe();
   }, []);
 
   return (

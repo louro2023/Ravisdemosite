@@ -1,16 +1,23 @@
-import { Rocket, ArrowLeft, Plus, Trash2, Save, X, AlertCircle } from 'lucide-react';
+import { Rocket, ArrowLeft, Plus, Trash2, Edit, Save, X, Calendar } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { fetchNoticias, addNoticia, deleteNoticia, type Noticia } from '../firebaseService';
+import { db } from '../firebase';
+import { ref, onValue, push, remove, update } from 'firebase/database';
+
+interface Noticia {
+  id: string;
+  categoria: string;
+  data: string;
+  titulo: string;
+  resumo: string;
+  imagem: string;
+}
 
 export default function Admin() {
   const [noticias, setNoticias] = useState<Noticia[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   
   const [novaNoticia, setNovaNoticia] = useState({
     categoria: 'Trabalho',
@@ -19,340 +26,384 @@ export default function Admin() {
     imagem: ''
   });
 
+  const [editingNoticia, setEditingNoticia] = useState<Noticia | null>(null);
+
+  // Imagens disponíveis na pasta raiz
+  const imageFiles = [
+    'noticia 1.jpg',
+    'noticia2.jpg',
+    'noticia 3.jpg',
+  ];
+
   useEffect(() => {
-    loadNoticias();
-  }, []);
-
-  const loadNoticias = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const data = await fetchNoticias();
-      setNoticias(data);
-    } catch (err) {
-      setError("Erro ao carregar notícias. Verifique sua conexão.");
-      console.error(err);
-    } finally {
+    // Fetch noticias from Firebase
+    const noticiasRef = ref(db, 'noticias');
+    const unsubscribe = onValue(noticiasRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const noticiasArray = Object.keys(data)
+          .map((key) => ({
+            id: key,
+            ...data[key]
+          }))
+          .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+        setNoticias(noticiasArray);
+      } else {
+        setNoticias([]);
+      }
       setIsLoading(false);
-    }
-  };
+    }, (error) => {
+      console.error("Erro ao buscar notícias:", error);
+      setIsLoading(false);
+    });
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setImagePreview(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+    return () => unsubscribe();
+  }, []);
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!novaNoticia.titulo || !novaNoticia.resumo) {
-      setError("Preencha todos os campos obrigatórios");
-      return;
-    }
-
-    if (!selectedFile && !novaNoticia.imagem) {
-      setError("Selecione uma imagem ou forneça uma URL");
+    if (!novaNoticia.titulo || !novaNoticia.resumo || !novaNoticia.imagem) {
+      alert('Por favor, preencha todos os campos');
       return;
     }
 
     try {
-      setIsSubmitting(true);
-      setError(null);
-      
-      let imagemUrl = novaNoticia.imagem;
+      const noticiasRef = ref(db, 'noticias');
+      await push(noticiasRef, {
+        categoria: novaNoticia.categoria,
+        titulo: novaNoticia.titulo,
+        resumo: novaNoticia.resumo,
+        imagem: novaNoticia.imagem,
+        data: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
+      });
 
-      // Upload image to server if selected
-      if (selectedFile) {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error('Erro ao fazer upload da imagem');
-        }
-
-        const uploadData = await uploadResponse.json();
-        imagemUrl = uploadData.url;
-      }
-
-      // Add news to database
-      await addNoticia(
-        {
-          categoria: novaNoticia.categoria,
-          titulo: novaNoticia.titulo,
-          resumo: novaNoticia.resumo,
-          imagem: imagemUrl,
-          data: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }),
-        }
-      );
-
-      // Reload noticias
-      await loadNoticias();
-      
-      // Reset form
-      setIsAdding(false);
       setNovaNoticia({
         categoria: 'Trabalho',
         titulo: '',
         resumo: '',
         imagem: ''
       });
-      setImagePreview(null);
-      setSelectedFile(null);
-    } catch (err) {
-      setError("Erro ao adicionar notícia. Tente novamente.");
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
+      setIsAdding(false);
+    } catch (error) {
+      console.error("Erro ao adicionar notícia:", error);
+      alert('Erro ao adicionar notícia');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Tem certeza que deseja excluir esta notícia?")) return;
-    
+    if (!confirm('Tem certeza que deseja deletar essa notícia?')) return;
+
     try {
-      setError(null);
-      await deleteNoticia(id);
-      setNoticias(noticias.filter(n => n.id !== id));
-    } catch (err) {
-      setError("Erro ao deletar notícia. Tente novamente.");
-      console.error(err);
+      const noticiasRef = ref(db, `noticias/${id}`);
+      await remove(noticiasRef);
+    } catch (error) {
+      console.error("Erro ao deletar notícia:", error);
+      alert('Erro ao deletar notícia');
     }
   };
 
+  const handleEditStart = (noticia: Noticia) => {
+    setEditingId(noticia.id);
+    setEditingNoticia(noticia);
+  };
+
+  const handleEditSave = async () => {
+    if (!editingNoticia || !editingNoticia.titulo || !editingNoticia.resumo) {
+      alert('Por favor, preencha todos os campos');
+      return;
+    }
+
+    try {
+      const noticiasRef = ref(db, `noticias/${editingNoticia.id}`);
+      await update(noticiasRef, {
+        categoria: editingNoticia.categoria,
+        titulo: editingNoticia.titulo,
+        resumo: editingNoticia.resumo,
+        imagem: editingNoticia.imagem,
+        data: editingNoticia.data
+      });
+      setEditingId(null);
+      setEditingNoticia(null);
+    } catch (error) {
+      console.error("Erro ao atualizar notícia:", error);
+      alert('Erro ao atualizar notícia');
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditingId(null);
+    setEditingNoticia(null);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
-      {/* Admin Header */}
-      <nav className="bg-brand-blue text-white shadow-md">
+    <div className="min-h-screen bg-gradient-to-br from-brand-blue to-brand-blue/80">
+      {/* Navigation */}
+      <nav className="bg-white/10 backdrop-blur-md border-b border-white/20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16 items-center">
-            <div className="flex items-center gap-2">
-              <Rocket className="h-6 w-6 text-brand-orange" />
-              <span className="font-heading font-bold text-xl tracking-tight">
-                Painel Administrativo
+          <div className="flex justify-between h-20 items-center">
+            <div className="flex items-center gap-3">
+              <Rocket className="h-8 w-8 text-brand-red" />
+              <span className="font-heading font-bold text-2xl text-white">
+                ADMIN
               </span>
             </div>
-            <Link to="/" className="text-slate-300 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors">
-              <ArrowLeft className="h-4 w-4" />
-              Voltar ao Site
+            <Link to="/" className="flex items-center gap-2 text-white hover:text-brand-orange transition-colors">
+              <ArrowLeft className="h-5 w-5" />
+              Voltar
             </Link>
           </div>
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="font-heading text-3xl font-bold text-brand-blue">Gerenciar Notícias</h1>
-          {!isAdding && (
-            <button 
-              onClick={() => setIsAdding(true)}
-              className="bg-brand-red hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-sm"
-            >
-              <Plus className="h-5 w-5" />
-              Nova Notícia
-            </button>
-          )}
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div className="text-red-800">{error}</div>
-          </div>
-        )}
-
-        {/* Add Form */}
-        {isAdding && (
-          <div className="bg-white p-6 rounded-xl shadow-md border border-slate-200 mb-8 animate-in fade-in slide-in-from-top-4">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="font-heading text-xl font-bold text-brand-blue">Adicionar Nova Notícia</h2>
-              <button onClick={() => setIsAdding(false)} className="text-slate-400 hover:text-slate-600">
-                <X className="h-6 w-6" />
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-4xl font-bold text-brand-blue">Gerenciar Notícias</h1>
+            {!isAdding && (
+              <button
+                onClick={() => setIsAdding(true)}
+                className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white px-6 py-3 rounded-full font-bold transition-all"
+              >
+                <Plus className="h-5 w-5" />
+                Nova Notícia
               </button>
-            </div>
-            
-            <form onSubmit={handleAddSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            )}
+          </div>
+
+          {/* Add Form */}
+          {isAdding && (
+            <div className="mb-12 p-6 bg-slate-50 rounded-xl border-2 border-brand-blue">
+              <h2 className="text-2xl font-bold text-brand-blue mb-6">Adicionar Nova Notícia</h2>
+              <form onSubmit={handleAddSubmit} className="space-y-4">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Categoria</label>
+                    <select
+                      value={novaNoticia.categoria}
+                      onChange={(e) => setNovaNoticia({ ...novaNoticia, categoria: e.target.value })}
+                      className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-brand-blue"
+                    >
+                      <option value="Trabalho">Trabalho</option>
+                      <option value="Alerj">Alerj</option>
+                      <option value="Ação Social">Ação Social</option>
+                      <option value="Educação">Educação</option>
+                      <option value="Saúde">Saúde</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Imagem</label>
+                    <select
+                      value={novaNoticia.imagem}
+                      onChange={(e) => setNovaNoticia({ ...novaNoticia, imagem: e.target.value })}
+                      className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-brand-blue"
+                    >
+                      <option value="">Selecionar imagem...</option>
+                      {imageFiles.map((file) => (
+                        <option key={file} value={`/${file}`}>
+                          {file}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Título *</label>
-                  <input 
-                    type="text" 
-                    required
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Título</label>
+                  <input
+                    type="text"
                     value={novaNoticia.titulo}
-                    onChange={e => setNovaNoticia({...novaNoticia, titulo: e.target.value})}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-brand-blue outline-none transition-all"
-                    placeholder="Ex: Novo projeto aprovado..."
+                    onChange={(e) => setNovaNoticia({ ...novaNoticia, titulo: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-brand-blue"
+                    placeholder="Título da notícia"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Categoria *</label>
-                  <select 
-                    value={novaNoticia.categoria}
-                    onChange={e => setNovaNoticia({...novaNoticia, categoria: e.target.value})}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-brand-blue outline-none transition-all"
+                  <label className="block text-sm font-bold text-slate-700 mb-2">Resumo</label>
+                  <textarea
+                    value={novaNoticia.resumo}
+                    onChange={(e) => setNovaNoticia({ ...novaNoticia, resumo: e.target.value })}
+                    className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-brand-blue"
+                    placeholder="Resumo da notícia"
+                    rows={4}
+                  />
+                </div>
+
+                <div className="flex gap-4">
+                  <button
+                    type="submit"
+                    className="flex items-center gap-2 bg-green-500 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold transition-all"
                   >
-                    <option value="Trabalho">Trabalho</option>
-                    <option value="Alerj">Alerj</option>
-                    <option value="Ação Social">Ação Social</option>
-                    <option value="Educação">Educação</option>
-                    <option value="Infraestrutura">Infraestrutura</option>
-                    <option value="Esporte">Esporte</option>
-                  </select>
+                    <Save className="h-5 w-5" />
+                    Salvar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAdding(false)}
+                    className="flex items-center gap-2 bg-slate-400 hover:bg-slate-500 text-white px-6 py-2 rounded-lg font-bold transition-all"
+                  >
+                    <X className="h-5 w-5" />
+                    Cancelar
+                  </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Imagem *</label>
-                <div className="space-y-3">
-                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-4 hover:bg-slate-50 transition-colors">
-                    <input 
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      className="w-full"
-                    />
-                    <p className="text-xs text-slate-500 mt-2">Ou forneça uma URL:</p>
-                    <input 
-                      type="url" 
-                      value={novaNoticia.imagem}
-                      onChange={e => setNovaNoticia({...novaNoticia, imagem: e.target.value})}
-                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-brand-blue outline-none transition-all text-sm mt-2"
-                      placeholder="https://exemplo.com/imagem.jpg"
-                    />
-                  </div>
-                  
-                  {imagePreview && (
-                    <div className="relative">
-                      <img 
-                        src={imagePreview} 
-                        alt="Preview" 
-                        className="w-full h-40 object-cover rounded-lg"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setImagePreview(null);
-                          setSelectedFile(null);
-                        }}
-                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Resumo *</label>
-                <textarea 
-                  required
-                  rows={3}
-                  value={novaNoticia.resumo}
-                  onChange={e => setNovaNoticia({...novaNoticia, resumo: e.target.value})}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-blue focus:border-brand-blue outline-none transition-all resize-none"
-                  placeholder="Breve descrição da notícia..."
-                ></textarea>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4">
-                <button 
-                  type="button"
-                  onClick={() => {
-                    setIsAdding(false);
-                    setImagePreview(null);
-                    setSelectedFile(null);
-                  }}
-                  className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg font-medium hover:bg-slate-50 transition-colors"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-brand-blue hover:bg-blue-900 disabled:bg-slate-400 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-sm"
-                >
-                  <Save className="h-4 w-4" />
-                  {isSubmitting ? 'Salvando...' : 'Salvar Notícia'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {/* News List */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-          {isLoading ? (
-            <div className="p-8 text-center text-slate-500">Carregando notícias...</div>
-          ) : noticias.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">Nenhuma notícia cadastrada.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 text-sm uppercase tracking-wider">
-                    <th className="p-4 font-medium">Imagem</th>
-                    <th className="p-4 font-medium">Título</th>
-                    <th className="p-4 font-medium">Categoria</th>
-                    <th className="p-4 font-medium">Data</th>
-                    <th className="p-4 font-medium text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {noticias.map((noticia) => (
-                    <tr key={noticia.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-4">
-                        <img 
-                          src={noticia.imagem} 
-                          alt="" 
-                          className="w-16 h-12 object-cover rounded" 
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            e.currentTarget.src = 'https://via.placeholder.com/64x48?text=Erro';
-                          }}
-                        />
-                      </td>
-                      <td className="p-4">
-                        <div className="font-medium text-slate-900 line-clamp-1">{noticia.titulo}</div>
-                        <div className="text-sm text-slate-500 line-clamp-1">{noticia.resumo}</div>
-                      </td>
-                      <td className="p-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {noticia.categoria}
-                        </span>
-                      </td>
-                      <td className="p-4 text-sm text-slate-500 whitespace-nowrap">
-                        {noticia.data}
-                      </td>
-                      <td className="p-4 text-right whitespace-nowrap">
-                        <button 
-                          onClick={() => handleDelete(noticia.id)}
-                          className="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                          title="Excluir"
-                        >
-                          <Trash2 className="h-5 w-5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              </form>
             </div>
           )}
+
+          {/* Loading State */}
+          {isLoading && (
+            <div className="text-center py-12">
+              <p className="text-slate-600 text-lg">Carregando notícias...</p>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!isLoading && noticias.length === 0 && !isAdding && (
+            <div className="text-center py-12">
+              <p className="text-slate-600 text-lg mb-4">Nenhuma notícia encontrada</p>
+              <button
+                onClick={() => setIsAdding(true)}
+                className="inline-flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white px-6 py-3 rounded-full font-bold transition-all"
+              >
+                <Plus className="h-5 w-5" />
+                Criar primeira notícia
+              </button>
+            </div>
+          )}
+
+          {/* News List */}
+          <div className="space-y-6">
+            {noticias.map((noticia) => (
+              <div key={noticia.id} className="border-2 border-slate-200 rounded-xl overflow-hidden hover:shadow-lg transition-all">
+                {editingId === noticia.id && editingNoticia ? (
+                  // Edit Mode
+                  <div className="p-6 bg-slate-50">
+                    <h3 className="text-xl font-bold text-brand-blue mb-4">Editar Notícia</h3>
+                    <div className="space-y-4">
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">Categoria</label>
+                          <select
+                            value={editingNoticia.categoria}
+                            onChange={(e) => setEditingNoticia({ ...editingNoticia, categoria: e.target.value })}
+                            className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-brand-blue"
+                          >
+                            <option value="Trabalho">Trabalho</option>
+                            <option value="Alerj">Alerj</option>
+                            <option value="Ação Social">Ação Social</option>
+                            <option value="Educação">Educação</option>
+                            <option value="Saúde">Saúde</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-bold text-slate-700 mb-2">Imagem</label>
+                          <select
+                            value={editingNoticia.imagem}
+                            onChange={(e) => setEditingNoticia({ ...editingNoticia, imagem: e.target.value })}
+                            className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-brand-blue"
+                          >
+                            <option value="">Selecionar imagem...</option>
+                            {imageFiles.map((file) => (
+                              <option key={file} value={`/${file}`}>
+                                {file}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Título</label>
+                        <input
+                          type="text"
+                          value={editingNoticia.titulo}
+                          onChange={(e) => setEditingNoticia({ ...editingNoticia, titulo: e.target.value })}
+                          className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-brand-blue"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Resumo</label>
+                        <textarea
+                          value={editingNoticia.resumo}
+                          onChange={(e) => setEditingNoticia({ ...editingNoticia, resumo: e.target.value })}
+                          className="w-full px-4 py-2 border-2 border-slate-200 rounded-lg focus:outline-none focus:border-brand-blue"
+                          rows={4}
+                        />
+                      </div>
+
+                      <div className="flex gap-4">
+                        <button
+                          onClick={handleEditSave}
+                          className="flex items-center gap-2 bg-green-500 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold transition-all"
+                        >
+                          <Save className="h-5 w-5" />
+                          Salvar
+                        </button>
+                        <button
+                          onClick={handleEditCancel}
+                          className="flex items-center gap-2 bg-slate-400 hover:bg-slate-500 text-white px-6 py-2 rounded-lg font-bold transition-all"
+                        >
+                          <X className="h-5 w-5" />
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // View Mode
+                  <div className="grid md:grid-cols-3 gap-6 p-6">
+                    <div className="md:col-span-1">
+                      {noticia.imagem && (
+                        <img
+                          src={noticia.imagem}
+                          alt={noticia.titulo}
+                          className="w-full h-48 object-cover rounded-lg"
+                        />
+                      )}
+                    </div>
+                    <div className="md:col-span-2">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <span className="inline-block bg-brand-blue text-white px-3 py-1 rounded-full text-sm font-bold mb-2">
+                            {noticia.categoria}
+                          </span>
+                          <p className="text-slate-500 text-sm flex items-center gap-2">
+                            <Calendar className="h-4 w-4" />
+                            {noticia.data}
+                          </p>
+                        </div>
+                      </div>
+                      <h3 className="text-2xl font-bold text-brand-blue mb-3">{noticia.titulo}</h3>
+                      <p className="text-slate-600 mb-6 line-clamp-2">{noticia.resumo}</p>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => handleEditStart(noticia)}
+                          className="flex items-center gap-2 bg-brand-blue hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition-all"
+                        >
+                          <Edit className="h-4 w-4" />
+                          Editar
+                        </button>
+                        <button
+                          onClick={() => handleDelete(noticia.id)}
+                          className="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition-all"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Deletar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
+
