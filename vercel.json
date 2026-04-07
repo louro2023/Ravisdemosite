@@ -8,5 +8,8 @@
     "deploymentEnabled": {
       "main": true
     }
+  },
+  "env": {
+    "GIT_SUBMODULES": "false"
   }
 }
