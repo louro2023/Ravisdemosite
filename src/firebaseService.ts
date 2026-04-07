@@ -1,6 +1,5 @@
-import { database, storage } from './firebase';
+import { database } from './firebase';
 import { ref, push, set, get, remove, update } from 'firebase/database';
-import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 export interface Noticia {
   id: string;
@@ -9,7 +8,6 @@ export interface Noticia {
   titulo: string;
   resumo: string;
   imagem: string;
-  imagemFile?: string; // Storage path
 }
 
 // ===== NOTÍCIAS =====
@@ -42,32 +40,18 @@ export const fetchNoticias = async (): Promise<Noticia[]> => {
   }
 };
 
-export const addNoticia = async (noticia: Omit<Noticia, 'id'>, imagemFile?: File): Promise<Noticia> => {
+export const addNoticia = async (noticia: Omit<Noticia, 'id'>): Promise<Noticia> => {
   try {
-    let imagemUrl = noticia.imagem;
-
-    // Upload image if provided
-    if (imagemFile) {
-      const timestamp = Date.now();
-      const fileName = `noticias/${timestamp}_${imagemFile.name}`;
-      const imageStorageRef = storageRef(storage, fileName);
-      
-      await uploadBytes(imageStorageRef, imagemFile);
-      imagemUrl = await getDownloadURL(imageStorageRef);
-    }
-
     // Add to database
     const noticiasRef = ref(database, 'noticias');
     const newNoticia = await push(noticiasRef, {
       ...noticia,
-      imagem: imagemUrl,
       criado: new Date().toISOString(),
     });
 
     return {
       id: newNoticia.key!,
       ...noticia,
-      imagem: imagemUrl,
     };
   } catch (error) {
     console.error('Erro ao adicionar notícia:', error);
@@ -75,25 +59,12 @@ export const addNoticia = async (noticia: Omit<Noticia, 'id'>, imagemFile?: File
   }
 };
 
-export const updateNoticia = async (id: string, updates: Partial<Noticia>, imagemFile?: File): Promise<void> => {
+export const updateNoticia = async (id: string, updates: Partial<Noticia>): Promise<void> => {
   try {
-    let imagemUrl = updates.imagem;
-
-    // Upload new image if provided
-    if (imagemFile) {
-      const timestamp = Date.now();
-      const fileName = `noticias/${timestamp}_${imagemFile.name}`;
-      const imageStorageRef = storageRef(storage, fileName);
-      
-      await uploadBytes(imageStorageRef, imagemFile);
-      imagemUrl = await getDownloadURL(imageStorageRef);
-    }
-
     // Update in database
     const noticiasRef = ref(database, `noticias/${id}`);
     await update(noticiasRef, {
       ...updates,
-      ...(imagemUrl && { imagem: imagemUrl }),
       atualizado: new Date().toISOString(),
     });
   } catch (error) {
@@ -102,18 +73,8 @@ export const updateNoticia = async (id: string, updates: Partial<Noticia>, image
   }
 };
 
-export const deleteNoticia = async (id: string, imagemPath?: string): Promise<void> => {
+export const deleteNoticia = async (id: string): Promise<void> => {
   try {
-    // Delete image from storage if path is provided
-    if (imagemPath && imagemPath.startsWith('noticias/')) {
-      try {
-        const imageRef = storageRef(storage, imagemPath);
-        await deleteObject(imageRef);
-      } catch (error) {
-        console.warn('Erro ao deletar imagem:', error);
-      }
-    }
-
     // Delete from database
     const noticiasRef = ref(database, `noticias/${id}`);
     await remove(noticiasRef);

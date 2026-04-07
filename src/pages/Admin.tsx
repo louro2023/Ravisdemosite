@@ -66,15 +66,35 @@ export default function Admin() {
       setIsSubmitting(true);
       setError(null);
       
+      let imagemUrl = novaNoticia.imagem;
+
+      // Upload image to server if selected
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Erro ao fazer upload da imagem');
+        }
+
+        const uploadData = await uploadResponse.json();
+        imagemUrl = uploadData.url;
+      }
+
+      // Add news to database
       await addNoticia(
         {
           categoria: novaNoticia.categoria,
           titulo: novaNoticia.titulo,
           resumo: novaNoticia.resumo,
-          imagem: novaNoticia.imagem,
+          imagem: imagemUrl,
           data: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }),
-        },
-        selectedFile || undefined
+        }
       );
 
       // Reload noticias

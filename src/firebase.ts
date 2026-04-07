@@ -1,6 +1,5 @@
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
-import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB375ZJml4M9b_Ihbqcumau-aatWRQ_3Ok",
@@ -16,8 +15,5 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize Realtime Database and get a reference to the service
 export const database = getDatabase(app);
-
-// Initialize Cloud Storage and get a reference to the service
-export const storage = getStorage(app);
 
 export default app;
