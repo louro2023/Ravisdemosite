@@ -117,7 +117,7 @@ export default function App() {
             >
               <div className="aspect-[4/5] rounded-3xl overflow-hidden border-8 border-white/10 shadow-2xl relative">
                 <img 
-                  src="https://picsum.photos/seed/felipinho/800/1000" 
+                  src="/midia/foto.jpg" 
                   alt="Felipinho Ravis" 
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
@@ -144,8 +144,8 @@ export default function App() {
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div className="order-2 lg:order-1 relative">
               <div className="grid grid-cols-2 gap-4">
-                <img src="https://picsum.photos/seed/family/400/500" alt="Família" className="rounded-2xl shadow-lg w-full h-64 object-cover" referrerPolicy="no-referrer" />
-                <img src="https://picsum.photos/seed/novaiguacu/400/500" alt="Nova Iguaçu" className="rounded-2xl shadow-lg w-full h-64 object-cover mt-8" referrerPolicy="no-referrer" />
+                <img src="/midia/foto2.jpg" alt="Família" className="rounded-2xl shadow-lg w-full h-64 object-cover" referrerPolicy="no-referrer" />
+                <img src="/midia/foto3.jpg" alt="Nova Iguaçu" className="rounded-2xl shadow-lg w-full h-64 object-cover mt-8" referrerPolicy="no-referrer" />
               </div>
               <div className="absolute -bottom-6 -right-6 bg-brand-blue text-white p-6 rounded-2xl shadow-xl max-w-xs">
                 <p className="font-heading font-bold text-2xl mb-1">"A política é ferramenta de transformação."</p>

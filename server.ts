@@ -15,7 +15,7 @@ let noticias = [
     data: "15 de Março, 2026",
     titulo: "Secretaria de Trabalho lança novo programa de qualificação na Baixada",
     resumo: "O novo programa visa capacitar mais de 5 mil jovens para o mercado de tecnologia até o final do ano, com foco em inclusão.",
-    imagem: "https://picsum.photos/seed/trabalho/600/400"
+    imagem: "/midia/noticia%201.jpg"
   },
   {
     id: 2,
@@ -23,7 +23,7 @@ let noticias = [
     data: "02 de Março, 2026",
     titulo: "Aprovada emenda que destina recursos para hospitais de Nova Iguaçu",
     resumo: "Foram garantidos mais de R$ 2 milhões para a compra de novos equipamentos para a rede municipal de saúde.",
-    imagem: "https://picsum.photos/seed/alerj/600/400"
+    imagem: "/midia/noticia2.jpg"
   },
   {
     id: 3,
@@ -31,7 +31,7 @@ let noticias = [
     data: "20 de Fevereiro, 2026",
     titulo: "Mutirão de serviços atende centenas de famílias no fim de semana",
     resumo: "Ação social promovida pelo mandato levou serviços de saúde, emissão de documentos e lazer para a comunidade.",
-    imagem: "https://picsum.photos/seed/social/600/400"
+    imagem: "/midia/noticia%203.jpg"
   }
 ];
 
@@ -81,6 +81,9 @@ async function startServer() {
     saveData();
     res.status(204).send();
   });
+
+  // Serve static files from midia folder
+  app.use('/midia', express.static(path.join(process.cwd(), 'midia')));
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
