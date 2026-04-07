@@ -1,0 +1,25 @@
+{
+  "noticias": {
+    "noticia_001": {
+      "titulo": "Secretaria de Trabalho lança novo programa de qualificação na Baixada",
+      "resumo": "O novo programa visa capacitar mais de 5 mil jovens para o mercado de tecnologia até o final do ano, com foco em inclusão.",
+      "categoria": "Trabalho",
+      "data": "15 de Março, 2026",
+      "imagem": "/midia/noticia 1.jpg"
+    },
+    "noticia_002": {
+      "titulo": "Aprovada emenda que destina recursos para hospitais de Nova Iguaçu",
+      "resumo": "Foram garantidos mais de R$ 2 milhões para a compra de novos equipamentos para a rede municipal de saúde.",
+      "categoria": "Alerj",
+      "data": "02 de Março, 2026",
+      "imagem": "/midia/noticia2.jpg"
+    },
+    "noticia_003": {
+      "titulo": "Mutirão de serviços atende centenas de famílias no fim de semana",
+      "resumo": "Ação social promovida pelo mandato levou serviços de saúde, emissão de documentos e lazer para a comunidade.",
+      "categoria": "Ação Social",
+      "data": "20 de Fevereiro, 2026",
+      "imagem": "/midia/noticia 3.jpg"
+    }
+  }
+}
